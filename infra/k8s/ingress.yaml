@@ -10,6 +10,11 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "0" # uploads go direct to object storage, never through this ingress
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # GET /api/events is a long-lived Server-Sent Events stream: it must not
+    # be buffered or closed by the default 60s timeouts.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 spec:
   ingressClassName: nginx
   rules:

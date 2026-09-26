@@ -1,0 +1,41 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; height: 100%; }
+body {
+  margin: 0; min-height: 100%; background: var(--paper); color: var(--ink);
+  font: 400 14.5px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+#root { min-height: 100vh; }
+h1, h2, h3, h4, p { margin: 0; }
+h1, h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 0.8rem; font-weight: 650; color: var(--ink-2); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+img, video { max-width: 100%; display: block; }
+ul { margin: 0; padding: 0; list-style: none; }
+dl, dd { margin: 0; }
+kbd { font: 600 0.78em var(--font-ui); background: var(--surface-2); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.muted { color: var(--ink-3); }
+.small { font-size: 0.8rem; }
+.grow { flex: 1; }
+.pad { padding: 1rem; }
+.block { display: block; }
+.mt { margin-top: 1.25rem; }
+.display { font-family: var(--font-display); font-size: 1.6rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ok-text { color: var(--ok); } .bad-text { color: var(--bad); }
+.stack { display: grid; gap: 1rem; }
+.only-mobile { display: none !important; }
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.page-center { display: grid; place-items: center; min-height: 40vh; }
+.spinner-wrap { display: inline-flex; color: var(--ink-3); }
+.skeleton { background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%); background-size: 200% 100%; animation: shimmer 1.4s ease infinite; border-radius: var(--r-tile); }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+@media (max-width: 639px) { .only-mobile { display: initial !important; } .only-desktop { display: none !important; } .hide-sm { display: none !important; } }

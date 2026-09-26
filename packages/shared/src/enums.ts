@@ -36,12 +36,17 @@ export enum JobType {
   VIDEO_TRANSCODE = 'VIDEO_TRANSCODE',
   VIDEO_THUMBNAIL = 'VIDEO_THUMBNAIL',
   VIDEO_PREVIEW = 'VIDEO_PREVIEW',
+  /** Extracts dimensions, duration, EXIF/codec info and a dominant colour
+   * onto the asset row itself. Unlike every other job type it produces no
+   * variant file - see JobStore.completeMetadataJob. */
+  METADATA_EXTRACT = 'METADATA_EXTRACT',
 }
 
 export enum WorkerKind {
   IMAGE = 'image-worker',
   VIDEO = 'video-worker',
   THUMBNAIL = 'thumbnail-worker',
+  METADATA = 'metadata-worker',
 }
 
 /** Which worker kind handles which job type. Single source of truth so
@@ -55,6 +60,7 @@ export const JOB_TYPE_TO_WORKER: Record<JobType, WorkerKind> = {
   [JobType.VIDEO_TRANSCODE]: WorkerKind.VIDEO,
   [JobType.VIDEO_PREVIEW]: WorkerKind.VIDEO,
   [JobType.VIDEO_THUMBNAIL]: WorkerKind.THUMBNAIL,
+  [JobType.METADATA_EXTRACT]: WorkerKind.METADATA,
 };
 
 export enum AssetKind {

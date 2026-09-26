@@ -38,7 +38,9 @@ export class JobProducerService {
         data: {
           assetId,
           type,
-          params,
+          // Prisma's Json input type rejects a bare Record<string, unknown>;
+          // params are plain JSON by construction (see AssetsService).
+          params: params as Prisma.InputJsonObject,
           idempotencyKey,
           maxAttempts: MAX_JOB_ATTEMPTS,
         },

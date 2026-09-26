@@ -1,6 +1,6 @@
-import { ChangeEvent, useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { api, Asset, uploadFileDirect } from '../api/client';
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api, Asset, uploadFileDirect } from "../api/client";
 
 export function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -28,15 +28,19 @@ export function AssetsPage() {
     setUploading(true);
     setUploadError(null);
     try {
-      const { uploadUrl, storageKey } = await api.getUploadUrl(file.name, file.type, file.size);
+      const { uploadUrl, storageKey } = await api.getUploadUrl(
+        file.name,
+        file.type,
+        file.size,
+      );
       await uploadFileDirect(uploadUrl, file);
       await api.confirmUpload(storageKey, file.name, file.type);
       await refresh();
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
-      e.target.value = '';
+      e.target.value = "";
     }
   }
 
@@ -47,9 +51,15 @@ export function AssetsPage() {
         <label>
           <strong>Upload a file</strong>
           <div className="muted" style={{ marginBottom: 8 }}>
-            Uploads go directly to object storage via a presigned URL — the API never sees the file bytes.
+            Uploads go directly to object storage via a presigned URL — the API
+            never sees the file bytes.
           </div>
-          <input type="file" accept="image/*,video/*" onChange={onFileSelected} disabled={uploading} />
+          <input
+            type="file"
+            accept="image/*,video/*"
+            onChange={onFileSelected}
+            disabled={uploading}
+          />
         </label>
         {uploading && <p className="muted">Uploading…</p>}
         {uploadError && <p className="error-text">{uploadError}</p>}
@@ -74,11 +84,17 @@ export function AssetsPage() {
             <tbody>
               {assets.map((a) => (
                 <tr key={a.id}>
-                  <td><Link to={`/assets/${a.id}`}>{a.fileName}</Link></td>
+                  <td>
+                    <Link to={`/assets/${a.id}`}>{a.fileName}</Link>
+                  </td>
                   <td>{a.kind}</td>
                   <td>{formatBytes(a.fileSize)}</td>
-                  <td><span className={`badge ${a.status}`}>{a.status}</span></td>
-                  <td className="muted">{new Date(a.createdAt).toLocaleString()}</td>
+                  <td>
+                    <span className={`badge ${a.status}`}>{a.status}</span>
+                  </td>
+                  <td className="muted">
+                    {new Date(a.createdAt).toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -91,7 +107,7 @@ export function AssetsPage() {
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  const units = ['KB', 'MB', 'GB'];
+  const units = ["KB", "MB", "GB"];
   let value = bytes / 1024;
   let unitIndex = 0;
   while (value >= 1024 && unitIndex < units.length - 1) {

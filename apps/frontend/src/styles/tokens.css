@@ -1,0 +1,66 @@
+/* Design tokens. Palette is cyanotype-inspired: cool paper, ink, one Prussian-blue
+   accent. Photos supply all the other colour; chrome stays quiet. */
+:root {
+  --paper: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eceff3;
+  --surface-3: #e2e7ed;
+  --line: #d8dee6;
+  --line-strong: #c3ccd7;
+  --ink: #111820;
+  --ink-2: #47525f;
+  --ink-3: #6f7a88;
+  --accent: #1b57b8;
+  --accent-hover: #164a9d;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2ecfa;
+  --ok: #17784c;
+  --ok-soft: #dff3e8;
+  --warn: #9a5b00;
+  --warn-soft: #fdf0d9;
+  --bad: #c0322b;
+  --bad-soft: #fbe4e2;
+  --viewer: #07090c;
+  --shadow-1: 0 1px 2px rgb(17 24 32 / 0.06), 0 1px 1px rgb(17 24 32 / 0.04);
+  --shadow-2: 0 12px 32px rgb(17 24 32 / 0.16), 0 2px 6px rgb(17 24 32 / 0.08);
+
+  --font-ui: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Figtree Variable', system-ui, sans-serif;
+
+  --r-tile: 6px;
+  --r-ctl: 8px;
+  --r-panel: 14px;
+  --r-sheet: 18px;
+
+  --sidebar-w: 248px;
+  --topbar-h: 60px;
+  --bottom-h: 64px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --paper: #0f1318;
+  --surface: #171c23;
+  --surface-2: #1f252e;
+  --surface-3: #29303b;
+  --line: #2b333e;
+  --line-strong: #3a4452;
+  --ink: #e8ecf1;
+  --ink-2: #a6b0bd;
+  --ink-3: #78828f;
+  --accent: #74a7ff;
+  --accent-hover: #93bbff;
+  --accent-ink: #0a1a33;
+  --accent-soft: #1b2b45;
+  --ok: #55c98f;
+  --ok-soft: #12291f;
+  --warn: #e2a13a;
+  --warn-soft: #332612;
+  --bad: #f0857e;
+  --bad-soft: #35191a;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}

@@ -1,5 +1,7 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { createWriteStream } from 'fs';
 import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 
 export interface S3Config {
   endpoint: string;
@@ -46,6 +48,15 @@ export class WorkerStorage {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     return Buffer.concat(chunks);
+  }
+
+  /** Streams an object straight to disk without holding it in memory.
+   * downloadToBuffer() above cannot handle large videos (a Node Buffer
+   * tops out near 2-4 GiB, and uploads are allowed up to 5 GiB), so
+   * anything that can be handed to a CLI tool as a path should use this. */
+  async downloadToFile(storageKey: string, destPath: string): Promise<void> {
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: storageKey }));
+    await pipeline(res.Body as Readable, createWriteStream(destPath));
   }
 
   async upload(storageKey: string, body: Buffer, mimeType: string): Promise<void> {

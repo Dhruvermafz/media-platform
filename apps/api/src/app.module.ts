@@ -13,6 +13,14 @@ import { AssetsModule } from './assets/assets.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AdminModule } from './admin/admin.module';
 import { HealthModule } from './health/health.module';
+import { ActivityModule } from './activity/activity.module';
+import { EventsModule } from './events/events.module';
+import { UsageModule } from './usage/usage.module';
+import { MeModule } from './me/me.module';
+import { CollectionsModule } from './collections/collections.module';
+import { TagsModule } from './tags/tags.module';
+import { SharesModule } from './shares/shares.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 import { MetricsController } from './metrics/metrics.controller';
 import { MetricsService } from './metrics/metrics.service';
 import { MetricsInterceptor } from './metrics/metrics.interceptor';
@@ -36,10 +44,18 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     PrismaModule,
     StorageModule,
     QueueModule,
+    ActivityModule,
+    EventsModule,
+    UsageModule,
     AuthModule,
+    MeModule,
     AssetsModule,
+    CollectionsModule,
+    TagsModule,
+    SharesModule,
     JobsModule,
     AdminModule,
+    CleanupModule,
     HealthModule,
   ],
   controllers: [MetricsController],

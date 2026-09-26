@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
 import {
+  EventPublisher,
   FinalJobError,
   JobMessage,
   JobStore,
@@ -37,7 +38,7 @@ function log(fields: Record<string, unknown>) {
 async function main() {
   const pool = new Pool({ connectionString: requireEnv('DATABASE_URL') });
   const redis = new Redis(requireEnv('REDIS_URL'));
-  const jobStore = new JobStore(pool);
+  const jobStore = new JobStore(pool, new EventPublisher(redis));
   const storage = new WorkerStorage(s3ConfigFromEnv());
   const metrics = new WorkerMetrics();
 

@@ -63,3 +63,23 @@ spec:
         consumerGroup: cg:thumbnail-worker
         pendingEntriesCount: "20"
         activationLagCount: "1"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: metadata-worker-scaler
+  namespace: media-platform
+spec:
+  scaleTargetRef:
+    name: metadata-worker
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  cooldownPeriod: 60
+  triggers:
+    - type: redis-streams
+      metadata:
+        address: REPLACE_ME_REDIS_HOST:6379
+        stream: stream:jobs:metadata-worker
+        consumerGroup: cg:metadata-worker
+        pendingEntriesCount: "20"
+        activationLagCount: "1"

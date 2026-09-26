@@ -20,6 +20,10 @@ scrape_configs:
     static_configs:
       - targets: ["thumbnail-worker:9100"]
 
+  - job_name: metadata-worker
+    static_configs:
+      - targets: ["metadata-worker:9100"]
+
   - job_name: cadvisor
     static_configs:
       - targets: ["cadvisor:8080"]

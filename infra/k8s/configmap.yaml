@@ -25,3 +25,11 @@ data:
   S3_BUCKET: "media-platform-prod"
   S3_FORCE_PATH_STYLE: "false"
   METRICS_PORT: "9100"
+  # Emails promoted to ADMIN on register/login. Set to your operators.
+  ADMIN_EMAILS: "admin@example.com"
+  TRASH_RETENTION_DAYS: "30"
+  ORPHAN_UPLOAD_TTL_HOURS: "24"
+  CLEANUP_ENABLED: "true"
+  # S3_PUBLIC_ENDPOINT is intentionally unset: on real S3 the browser and the
+  # cluster use the same endpoint. Set it only if they differ (e.g. an
+  # internal MinIO service name vs. a public storage hostname).

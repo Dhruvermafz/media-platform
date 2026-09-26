@@ -1,10 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
 @ApiTags('auth')
+// Per-IP throttle on credential endpoints (RateLimitGuard falls back to the
+// client IP when there is no authenticated user).
+@UseGuards(RateLimitGuard)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

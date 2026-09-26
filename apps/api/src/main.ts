@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -6,7 +7,11 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  // Behind NGINX/an ingress every request arrives from the proxy's IP. Without
+  // this, RateLimitGuard's per-IP fallback (login, public share links) would
+  // put every anonymous visitor in one shared bucket.
+  app.set('trust proxy', 1);
   app.useLogger(app.get(PinoLogger));
 
   const config = app.get(ConfigService);

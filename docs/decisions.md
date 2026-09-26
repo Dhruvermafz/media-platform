@@ -172,44 +172,150 @@ stolen token remains valid until it expires (`JWT_EXPIRES_IN`, default
 token's remaining lifetime) or move to short-lived access tokens with
 refresh-token rotation. Documented here rather than silently shipped.
 
-## Auth: no RBAC in v1
+## Auth: role-based access control (ADMIN / USER)
 
-**Decision**: any authenticated user can view `/admin/*` endpoints
-(operations dashboard). There is no role or permission model.
+**Decision**: users have a `role` (`USER` default, `ADMIN`). The role is a
+claim in the JWT and `RolesGuard` enforces `@Roles(Role.ADMIN)` on
+`/admin/*`. Admins are bootstrapped from the `ADMIN_EMAILS` env var
+(promoted on register *and* login, so accounts that pre-date roles are
+covered) and can then promote others from the Operations > Users page.
 
-**Why not fake it?** A hardcoded `isAdmin` boolean not backed by any
-real authorization logic would be worse than no RBAC at all — it
-signals a security boundary that doesn't actually exist. Documented as
-a future enhancement (see below) instead.
+**Trade-off accepted**: because the role lives in a stateless token, a
+demotion takes effect when the user's current token expires
+(`JWT_EXPIRES_IN`, default 1h) — the same staleness the stateless-JWT
+decision already accepts for logout. Checking the database on every
+request would remove that gap but adds a query to every call; not worth it
+for an admin-only surface. An admin can't demote themselves, so the last
+admin can't lock everyone out of the page.
 
----
-
-## Manual retry always resets to attempt 1
-
-**Decision**: `POST /jobs/:id/retry` (the dashboard's retry button)
-always sets `attempt = 0` and republishes as attempt 1, regardless of
-how many attempts the job had already burned — including from
-`DEAD_LETTER`, which the automatic retry sweep never touches.
-
-**Why?** A human clicking "retry" is asserting "conditions have changed,
-try again from scratch" (they fixed the FFmpeg config, the disk that
-was full is no longer full, etc.), not "resume exactly where the
-automatic backoff sequence left off." Automatic retries (which *do*
-respect the running attempt count and `MAX_JOB_ATTEMPTS`) and manual
-retries are deliberately different code paths for this reason.
+**Why `ADMIN_EMAILS` rather than "first user is admin"?** "First user wins"
+is a race and a footgun on shared databases; an explicit allow-list is
+auditable and works in Kubernetes via the ConfigMap.
 
 ---
 
-## Asset status is derived, never written directly
+## Real-time updates: SSE over Redis pub/sub, not WebSockets or polling
 
-**Decision**: `assets.status` is only ever set by
-`JobStore.recomputeAssetStatus`, called after every job completion or
-dead-lettering. Nothing else writes to it directly except the initial
-`UPLOADING`/`PROCESSING` transitions in `AssetsService`.
+**Decision**: workers and the API publish small events
+(`job.updated`, `asset.updated`, `asset.created`, ...) to a per-user Redis
+channel (`events:user:{id}`). Every API replica `psubscribe`s once and fans
+events out to that user's open `GET /events` streams (Server-Sent Events).
 
-**Why?** So "why is this asset READY / FAILED" always has exactly one
-answer traceable to job state, instead of two independent state
-machines (asset status, job status) that could drift out of sync.
+**Events are hints, not data.** They say "something changed, refetch";
+Postgres stays the source of truth. So pub/sub's lack of delivery
+guarantees is harmless: a lost event means a slightly late refresh, and
+the client refetches everything on every (re)connect to cover the gap.
+That is why no persistence, replay or ack machinery was built.
+
+**Why SSE?** Updates are one-directional; SSE is plain HTTP (works through
+the existing NGINX/ingress with buffering off — see the config), reconnects
+by itself, and needs no sticky sessions because fan-out goes through Redis.
+WebSockets would add bidirectional complexity nobody uses here.
+
+**Auth without EventSource**: the browser `EventSource` cannot set an
+`Authorization` header and a token in the URL would leak into proxy logs,
+so the frontend consumes the stream with `fetch()` and parses the SSE
+framing itself (~40 lines).
+
+**Also fixes**: the asset-detail cache is now deleted when a worker event
+passes through the API, so a client told "READY" never reads pre-completion
+data from the 30 s cache (the old "worker-triggered invalidation" gap).
+Polling remains as a fallback only while the stream is down *and* something
+is still processing.
+
+**Cost**: one long-lived connection per open tab. `connectionCount()` is
+available for a metric; a per-user cap is a sensible next step.
+
+---
+
+## Soft delete (trash) with a retention sweep
+
+**Decision**: `POST /assets/:id/trash` sets `deletedAt`; the library hides
+trashed rows; `DELETE /assets/:id` remains the permanent, irreversible
+delete (kept as-is for backward compatibility). `CleanupService` purges
+assets trashed longer than `TRASH_RETENTION_DAYS` (default 30) hourly.
+
+**Why not delete straight away?** Accidental deletion of media is the
+worst thing a library can do. Trashed items still count toward the quota
+(the bytes are still stored) until purged.
+
+**Multi-replica safety**: every API replica schedules the crons, but each
+run first takes a Redis lock (`SET NX EX`), so exactly one does the work
+without a separate scheduler deployment.
+
+---
+
+## Orphaned uploads: swept, with a TTL far above the presign window
+
+An upload that never reached `POST /assets` leaves an object with no row —
+invisible and still billed. The daily sweep lists `uploads/`, and deletes
+objects older than `ORPHAN_UPLOAD_TTL_HOURS` (24) that no asset references.
+The TTL must be much larger than the 15-minute presigned-PUT lifetime so an
+in-flight upload is never deleted under its owner. (An S3 lifecycle rule on
+the prefix is the zero-code alternative in production; this works everywhere,
+including MinIO.)
+
+---
+
+## Presigned URLs: browser-reachable endpoint + cache-stable signing
+
+Two separate bugs/needs are solved in `StorageService`:
+
+1. **Reachability.** In docker-compose the API talks to MinIO at
+   `http://minio:9000`, a hostname a browser can't resolve, so presigned
+   URLs signed against it can never work from a browser. Presigning uses a
+   second client bound to `S3_PUBLIC_ENDPOINT` (defaults to `S3_ENDPOINT`,
+   so real S3 needs no config).
+2. **Cacheability.** A URL signed at "now" differs on every request, so the
+   browser re-downloads every thumbnail on every list refresh — fatal for a
+   library that refreshes live. Download URLs are signed against the
+   *start of the current 30-minute window* with a 3-hour expiry, so the URL
+   is identical for everyone inside a window (HTTP cache and any CDN work)
+   and always has ≥2.5 h of validity left.
+
+---
+
+## Storage quotas count originals only
+
+`storageQuotaBytes` (default 5 GiB, admin-editable) is compared with the sum
+of *original* file sizes (including trash). Renditions are cheap to
+regenerate and would make the number a user sees impossible to reason
+about. The quota is checked twice: at `upload-url` (fast feedback) and again
+at confirm using the *real* object size, deleting the object on failure —
+because the size declared at upload-url time is client-supplied.
+
+---
+
+## metadata-worker: extracted onto the asset row, GPS deliberately dropped
+
+**Decision**: a fourth worker consumes `METADATA_EXTRACT` jobs and writes
+width/height/duration/dominant colour/EXIF/codec info onto the *asset*
+(one transaction with marking the job complete), not into `asset_variants` —
+there is no derived file. It follows the existing worker pattern exactly, so
+retries, idempotency, DLQ, metrics and KEDA scaling all apply.
+
+**Privacy**: photos routinely embed the exact GPS location of someone's
+home. This platform can publish media via public links, so GPS is never
+extracted or stored. Camera settings and capture time are kept.
+
+**Robustness**: EXIF orientation 5–8 swaps reported width/height (so a phone
+photo shows as portrait); videos are streamed to a temp file rather than
+loaded into memory (uploads can be 5 GiB and a Node `Buffer` cannot hold
+that). The other workers still use `downloadToBuffer` for video — moving them
+to `downloadToFile` is a worthwhile follow-up.
+
+---
+
+## Public share links: capability URLs with layered limits
+
+A link is a 192-bit random token (unguessable), optionally password-protected
+(bcrypt hash), expiring, revocable, and never cached (`Cache-Control:
+no-store`, `Referrer-Policy: no-referrer` on the SPA). Unknown and revoked
+tokens both return 404 (indistinguishable); expired returns 410. Wrong
+passwords are limited to 10 per (link, IP) per 15 minutes on top of the
+per-IP request limiter (which needs `trust proxy`, now enabled, or every
+visitor behind NGINX would share one bucket). A `CHECK` constraint
+guarantees exactly one target per link even if service code regresses.
 
 ---
 
@@ -218,16 +324,15 @@ machines (asset status, job status) that could drift out of sync.
 Per the brief's instruction not to fake implementations: these are
 real gaps, not oversights papered over.
 
-- **RBAC / admin roles** — see "Auth: no RBAC in v1" above.
 - **Refresh tokens / logout invalidation** — see "Auth: stateless JWT" above.
-- **Cache invalidation on job completion from the worker side** — see
-  "Redis cache: TTL choice" above; currently relies on TTL expiry.
-- **Orphaned-upload cleanup** — an asset stuck in `UPLOADING` (client got
-  a presigned URL, never actually uploaded, never confirmed) is never
-  cleaned up automatically. A production system would add either an S3
-  lifecycle rule on the `uploads/` prefix or a scheduled sweep job.
-- **WebSocket/SSE push for status updates** — the frontend polls every
-  3-4 seconds instead. Fine at this scale; a real product with many
-  concurrent viewers would push updates instead of polling.
+- **Resumable/multipart uploads** — each file is one presigned PUT (up to
+  5 GiB). Unreliable mobile networks would benefit from S3 multipart with
+  per-part retry; the client already retries once on transient errors.
+- **Real search** — `q` is `ILIKE` over name/title/description/tags, fine
+  to ~100k assets per user; beyond that add `pg_trgm` GIN indexes or a
+  search engine.
+- **Per-user cap on SSE connections**, and an `Idempotency-Key` on
+  `POST /assets/bulk`.
+- **Streaming downloads in the other workers** (see metadata-worker above).
 - **Multi-tenant / organization support** — assets are owned by
   individual users only.

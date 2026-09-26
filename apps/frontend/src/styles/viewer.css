@@ -1,0 +1,47 @@
+/* ---------- full-screen viewer (always dark, whatever the theme) ---------- */
+.viewer { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--viewer); color: #e8ecf1; outline: none; animation: fade 0.15s; }
+.viewer-bar { display: flex; align-items: center; gap: 0.5rem; height: 56px; padding: var(--safe-t) 0.75rem 0; flex: none; box-sizing: content-box; background: linear-gradient(to bottom, rgb(0 0 0 / 0.55), transparent); position: relative; z-index: 5; }
+.viewer .icon-btn.on-dark, .viewer .menu-wrap .icon-btn { color: #e8ecf1; } .viewer .icon-btn.on-dark:hover, .viewer .icon-btn.active { background: rgb(255 255 255 / 0.14); color: #fff; }
+.viewer .icon-btn.fav-on { color: #ffd15a; }
+.viewer-title { flex: 1; min-width: 0; display: grid; } .viewer-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .viewer-title .small { color: #9aa5b3; }
+.viewer-actions { display: flex; align-items: center; gap: 2px; }
+.viewer .menu { color: var(--ink); }
+.viewer-body { flex: 1; min-height: 0; display: flex; }
+.viewer-stage { position: relative; flex: 1; min-width: 0; display: grid; place-items: center; touch-action: pan-y; overflow: hidden; }
+.stage-media { position: relative; width: 100%; height: 100%; display: grid; place-items: center; padding: 0.5rem 0 1rem; }
+.stage-img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; transition: transform 0.2s; user-select: none; animation: fade 0.2s; }
+.stage-img.zoomed { transform: scale(2.4); cursor: zoom-out; } .stage-img.blurred { filter: blur(14px); transform: scale(1.03); opacity: 0.7; cursor: default; }
+.video-wrap { position: relative; width: min(100%, 1100px); max-height: 100%; display: grid; place-items: center; } .stage-video { width: 100%; max-height: calc(100vh - 130px); background: #000; border-radius: 4px; }
+.video-fallback { position: relative; width: min(90%, 720px); max-height: 70vh; border-radius: 10px; overflow: hidden; background: #000; display: grid; place-items: center; }
+.video-fallback img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.35; filter: blur(6px); }
+.video-fallback > div { position: relative; display: grid; gap: 0.6rem; justify-items: center; text-align: center; padding: 1.5rem; }
+.quality { position: absolute; top: 10px; right: 10px; } .quality select { height: 28px; padding: 0 0.5rem; border-radius: 8px; border: 0; background: rgb(0 0 0 / 0.6); color: #fff; font-size: 0.8rem; }
+.nav-btn { position: absolute; z-index: 4; top: 50%; transform: translateY(-50%); width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: rgb(0 0 0 / 0.4); color: #fff; opacity: 0; transition: opacity 0.15s; }
+.nav-btn.left { left: 12px; } .nav-btn.right { right: 12px; } .viewer-stage:hover .nav-btn { opacity: 1; } .nav-btn:hover { background: rgb(0 0 0 / 0.7); } .nav-btn:focus-visible { opacity: 1; }
+@media (hover: none) { .nav-btn { display: none; } }
+.stage-status { position: absolute; z-index: 4; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 99px; background: rgb(0 0 0 / 0.7); backdrop-filter: blur(8px); color: #fff; white-space: nowrap; } .stage-status .link-btn { color: #9dc0ff; }
+.viewer .empty { color: #e8ecf1; } .viewer .empty-icon { background: rgb(255 255 255 / 0.08); }
+
+/* details panel */
+.viewer-panel { flex: none; width: 360px; background: var(--surface); color: var(--ink); border-left: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.panel-scroll { overflow-y: auto; padding: 1rem 1.1rem 2rem; display: grid; gap: 1.4rem; align-content: start; }
+.panel-scroll section > h3, .section-head h3 { margin-bottom: 0.55rem; } .section-head { display: flex; justify-content: space-between; align-items: baseline; }
+.panel-title { width: 100%; border: 0; background: transparent; font: 600 1.2rem var(--font-display); padding: 0.2rem 0.3rem; margin: 0 -0.3rem; border-radius: 6px; } .panel-title:hover:not(:disabled), .panel-title:focus { background: var(--surface-2); outline: none; }
+.panel-title::placeholder { color: var(--ink); opacity: 0.85; }
+.panel-desc { width: 100%; border: 0; background: transparent; resize: none; padding: 0.2rem 0.3rem; margin: 0 -0.3rem; border-radius: 6px; color: var(--ink-2); } .panel-desc:hover:not(:disabled), .panel-desc:focus { background: var(--surface-2); outline: none; }
+.facts { display: grid; gap: 0.4rem; } .facts > div { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.86rem; } .facts dt { color: var(--ink-3); flex: none; } .facts dd { text-align: right; overflow-wrap: anywhere; }
+.facts.two { grid-template-columns: 1fr 1fr; gap: 0.6rem 2rem; margin: 1rem 0 0.6rem; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--line); }
+.variant-list, .job-list { display: grid; gap: 0.35rem; }
+.variant-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0.5rem 0.3rem 0.7rem; background: var(--surface-2); border-radius: 8px; font-size: 0.86rem; } .variant-list li > div { display: grid; min-width: 0; } .variant-list strong { overflow: hidden; text-overflow: ellipsis; }
+.job-list li { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; font-size: 0.86rem; padding: 0.2rem 0; }
+.job-reason { flex-basis: 100%; color: var(--bad); font-family: ui-monospace, monospace; word-break: break-word; }
+.panel-close { position: absolute; top: 6px; right: 6px; z-index: 2; }
+
+@media (max-width: 1023px) {
+  /* Panel stacks under the image and they share the screen, so the photo stays visible while you read its details. */
+  .viewer-body { flex-direction: column; }
+  .viewer-panel { width: auto; flex: none; max-height: 58%; border-left: 0; border-top: 1px solid var(--line); border-radius: var(--r-sheet) var(--r-sheet) 0 0; padding-bottom: var(--safe-b); animation: slide-up 0.22s ease-out; }
+  .viewer-stage { min-height: 0; }
+}
+@media (max-width: 639px) { .viewer-actions .icon-btn { width: 40px; } .stage-video { max-height: calc(100vh - 140px); } .panel-scroll { padding-top: 2.4rem; } }

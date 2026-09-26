@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "docker compose -f infra/docker/docker-compose.yml up --build"
+    "dev": "docker compose -f infra/docker/docker-compose.yml up --build",
+    "test:integration": "node scripts/integration/worker-pipeline.mjs"
   }
 }

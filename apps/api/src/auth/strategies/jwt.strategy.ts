@@ -14,8 +14,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // Whatever this returns becomes `req.user`.
+  // Whatever this returns becomes `req.user`. Tokens minted before roles
+  // existed have no `role` claim and are treated as plain users.
   async validate(payload: JwtPayload) {
-    return { userId: payload.sub, email: payload.email };
+    return { userId: payload.sub, email: payload.email, role: payload.role ?? 'USER' };
   }
 }

@@ -1,4 +1,5 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
@@ -6,13 +7,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let prisma: { user: { findUnique: jest.Mock; create: jest.Mock } };
+  let prisma: { user: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock } };
   let jwt: { signAsync: jest.Mock };
 
   beforeEach(() => {
-    prisma = { user: { findUnique: jest.fn(), create: jest.fn() } };
+    prisma = { user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() } };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-token') };
-    service = new AuthService(prisma as unknown as PrismaService, jwt as unknown as JwtService);
+    const config = { get: jest.fn().mockReturnValue(['boss@example.com']) };
+    service = new AuthService(prisma as unknown as PrismaService, jwt as unknown as JwtService, config as unknown as ConfigService);
   });
 
   describe('register', () => {
@@ -27,7 +29,7 @@ describe('AuthService', () => {
     it('hashes the password before storing it', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockImplementation(({ data }) =>
-        Promise.resolve({ id: 'new-user', email: data.email, createdAt: new Date() }),
+        Promise.resolve({ id: 'new-user', email: data.email, role: data.role, createdAt: new Date() }),
       );
 
       await service.register({ email: 'new@example.com', password: 'plaintext-password' });
@@ -39,12 +41,30 @@ describe('AuthService', () => {
 
     it('returns a signed access token on success', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue({ id: 'new-user', email: 'new@example.com', createdAt: new Date() });
+      prisma.user.create.mockResolvedValue({ id: 'new-user', email: 'new@example.com', role: 'USER', createdAt: new Date() });
 
       const result = await service.register({ email: 'new@example.com', password: 'password123' });
 
       expect(result.accessToken).toBe('signed-token');
-      expect(jwt.signAsync).toHaveBeenCalledWith({ sub: 'new-user', email: 'new@example.com' });
+      expect(jwt.signAsync).toHaveBeenCalledWith({ sub: 'new-user', email: 'new@example.com', role: 'USER' });
+    });
+
+    it('promotes emails listed in ADMIN_EMAILS to ADMIN at registration (case-insensitive)', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'u', email: data.email, role: data.role, createdAt: new Date() }),
+      );
+      await service.register({ email: 'Boss@Example.com', password: 'password123' });
+      expect(prisma.user.create.mock.calls[0][0].data.role).toBe('ADMIN');
+    });
+
+    it('does not grant ADMIN to other emails', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'u', email: data.email, role: data.role, createdAt: new Date() }),
+      );
+      await service.register({ email: 'someone@example.com', password: 'password123' });
+      expect(prisma.user.create.mock.calls[0][0].data.role).toBe('USER');
     });
   });
 
@@ -77,6 +97,19 @@ describe('AuthService', () => {
       const result = await service.login({ email: 'a@example.com', password: 'correct-password' });
       expect(result.accessToken).toBe('signed-token');
       expect(result.user.email).toBe('a@example.com');
+    });
+  });
+
+  describe('login role promotion', () => {
+    it('promotes a pre-existing account that is now listed in ADMIN_EMAILS', async () => {
+      const passwordHash = await bcrypt.hash('pw-123456', 12);
+      const base = { id: 'u1', email: 'boss@example.com', passwordHash, role: 'USER', createdAt: new Date() };
+      prisma.user.findUnique.mockResolvedValue(base);
+      prisma.user.update.mockResolvedValue({ ...base, role: 'ADMIN' });
+      const res = await service.login({ email: 'boss@example.com', password: 'pw-123456' });
+      expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { role: 'ADMIN' } });
+      expect(res.user.role).toBe('ADMIN');
+      expect(jwt.signAsync).toHaveBeenCalledWith({ sub: 'u1', email: 'boss@example.com', role: 'ADMIN' });
     });
   });
 });

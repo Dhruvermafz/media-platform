@@ -20,6 +20,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let error = 'Internal Server Error';
     let message: string | string[] = 'An unexpected error occurred';
+    let code: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -28,6 +29,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = body;
       } else if (typeof body === 'object' && body !== null) {
         message = (body as any).message ?? exception.message;
+        // Optional machine-readable discriminator (e.g. PASSWORD_REQUIRED,
+        // QUOTA_EXCEEDED) so clients branch on a stable code, not on prose.
+        code = (body as any).code;
       }
       error = HttpStatus[status] ?? 'Error';
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
@@ -54,6 +58,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       error,
       message,
+      ...(code ? { code } : {}),
       path: request.url,
       timestamp: new Date().toISOString(),
     });

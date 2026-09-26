@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { JobStatus, WorkerKind, streamKeyFor, dlqStreamKeyFor, consumerGroupFor } from '@media-platform/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../queue/redis.service';
@@ -41,6 +42,43 @@ export class AdminService {
       take: limit,
       include: { asset: { select: { fileName: true, ownerId: true } } },
     });
+  }
+
+  /** One row per user with asset count + bytes stored, aggregated in the
+   * database (a per-user query loop would be O(users) round trips). */
+  async listUsers() {
+    const [users, usage] = await Promise.all([
+      this.prisma.user.findMany({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.asset.groupBy({ by: ['ownerId'], _sum: { fileSize: true }, _count: true }),
+    ]);
+    const byOwner = new Map(usage.map((u) => [u.ownerId, u]));
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.displayName,
+      role: u.role,
+      createdAt: u.createdAt,
+      storageQuotaBytes: Number(u.storageQuotaBytes),
+      usedBytes: Number(byOwner.get(u.id)?._sum.fileSize ?? 0),
+      assetCount: byOwner.get(u.id)?._count ?? 0,
+    }));
+  }
+
+  async updateUser(actorId: string, targetId: string, dto: { role?: Role; storageQuotaBytes?: number }) {
+    if (dto.role && dto.role !== Role.ADMIN && targetId === actorId) {
+      // Prevents the last admin locking everyone out of this page.
+      throw new BadRequestException('You cannot remove your own admin role');
+    }
+    const exists = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    if (!exists) throw new NotFoundException('User not found');
+    const u = await this.prisma.user.update({
+      where: { id: targetId },
+      data: {
+        ...(dto.role ? { role: dto.role } : {}),
+        ...(dto.storageQuotaBytes !== undefined ? { storageQuotaBytes: BigInt(dto.storageQuotaBytes) } : {}),
+      },
+    });
+    return { id: u.id, email: u.email, role: u.role, storageQuotaBytes: Number(u.storageQuotaBytes) };
   }
 
   private async assetCountsByStatus() {

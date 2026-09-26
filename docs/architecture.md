@@ -37,7 +37,7 @@ keys.
 
 ## Why separate worker services instead of one NestJS monolith
 
-`image-worker`, `video-worker`, and `thumbnail-worker` are separate
+`image-worker`, `video-worker`, `thumbnail-worker` and `metadata-worker` are separate
 processes/containers, not modules inside the API:
 
 - **Independent scaling**: video transcoding is CPU-heavy and slow
@@ -120,3 +120,17 @@ would add network calls and deployment coordination for no benefit.
                                               | (MinIO / S3)     |
                                               +------------------+
 ```
+
+
+## Real-time path (added with the library upgrade)
+
+```text
+worker completes job -> Postgres (source of truth)
+                     -> Redis PUBLISH events:user:{ownerId}
+API replicas (psubscribe events:user:*) -> in-memory listeners -> SSE stream -> browser
+browser: "something changed" -> invalidate cached queries -> refetch from the API
+```
+
+See "Real-time updates" in [decisions.md](./decisions.md). The API also
+publishes its own events (upload confirmed, trash, tag edits...) so a
+second open tab or device stays in sync.

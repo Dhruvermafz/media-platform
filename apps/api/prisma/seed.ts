@@ -5,7 +5,8 @@ const prisma = new PrismaClient();
 
 /**
  * Intentionally minimal and non-destructive: creates one demo account if
- * it doesn't already exist, and nothing else. Seeding synthetic assets
+ * it doesn't already exist, and nothing else. (If demo@example.com is in
+ * ADMIN_EMAILS it is promoted to ADMIN the first time it logs in.) Seeding synthetic assets
  * would require real files sitting in object storage for jobs to
  * process against, which a seed script can't fabricate meaningfully —
  * use the actual upload flow (docs/api.md) to create test data instead.

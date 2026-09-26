@@ -38,40 +38,76 @@ enum JobType {
   VIDEO_TRANSCODE
   VIDEO_THUMBNAIL
   VIDEO_PREVIEW
+  METADATA_EXTRACT
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  displayName       String?
+  role              Role     @default(USER)
+  // Per-user cap on the sum of *original* file sizes (processed renditions
+  // are not counted). 5 GiB default; admins can change it per user.
+  storageQuotaBytes BigInt   @default(5368709120)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  assets Asset[]
+  assets      Asset[]
+  collections Collection[]
+  tags        Tag[]
+  shareLinks  ShareLink[]
+  activities  ActivityLog[]
 
   @@map("users")
 }
 
 model Asset {
-  id            String      @id @default(uuid())
-  ownerId       String
-  owner         User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  fileName      String
-  mimeType      String
-  kind          AssetKind
-  fileSize      BigInt
-  storageKey    String // object storage key for the original file
-  status        AssetStatus @default(UPLOADING)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id         String      @id @default(uuid())
+  ownerId    String
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  fileName   String
+  mimeType   String
+  kind       AssetKind
+  fileSize   BigInt
+  storageKey String // object storage key for the original file
+  status     AssetStatus @default(UPLOADING)
 
-  processingJobs  ProcessingJob[]
-  variants        AssetVariant[]
+  // --- library fields ---
+  title       String? // user-editable display name; falls back to fileName
+  description String?
+  isFavorite  Boolean   @default(false)
+  deletedAt   DateTime? // soft delete: non-null means "in trash" (see CleanupService)
+
+  // --- extracted by metadata-worker (METADATA_EXTRACT job) ---
+  width         Int?
+  height        Int?
+  durationMs    Int?
+  dominantColor String? // "#rrggbb", used as the tile placeholder before the thumbnail loads
+  capturedAt    DateTime? // EXIF DateTimeOriginal / container creation_time
+  metadata      Json? // camera, codec, fps, etc. - shape documented in docs/api.md
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  processingJobs ProcessingJob[]
+  variants       AssetVariant[]
+  tags           AssetTag[]
+  collections    CollectionAsset[]
+  shareLinks     ShareLink[]
 
   // Hot path: "list my assets, newest first" and "list my assets by status"
   // are the two queries the dashboard issues on every page load.
   @@index([ownerId, createdAt(sort: Desc)])
   @@index([ownerId, status])
+  // Library views always filter on trashed-or-not first, then sort by date.
+  @@index([ownerId, deletedAt, createdAt(sort: Desc)])
+  @@index([ownerId, isFavorite])
   @@map("assets")
 }
 
@@ -107,19 +143,19 @@ model ProcessingJob {
 }
 
 model AssetVariant {
-  id          String        @id @default(uuid())
-  assetId     String
-  asset       Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  jobId       String?       @unique
-  job         ProcessingJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  type        JobType
-  storageKey  String
-  mimeType    String
-  fileSize    BigInt
-  width       Int?
-  height      Int?
-  durationMs  Int?
-  createdAt   DateTime      @default(now())
+  id         String         @id @default(uuid())
+  assetId    String
+  asset      Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  jobId      String?        @unique
+  job        ProcessingJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  type       JobType
+  storageKey String
+  mimeType   String
+  fileSize   BigInt
+  width      Int?
+  height     Int?
+  durationMs Int?
+  createdAt  DateTime       @default(now())
 
   // A variant is uniquely identified by the transformation that produced
   // it, mirroring the idempotency key on ProcessingJob — this is the
@@ -127,4 +163,98 @@ model AssetVariant {
   @@unique([assetId, type, storageKey])
   @@index([assetId])
   @@map("asset_variants")
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets     CollectionAsset[]
+  shareLinks ShareLink[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@map("collections")
+}
+
+model CollectionAsset {
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  assetId      String
+  asset        Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  addedAt      DateTime   @default(now())
+
+  @@id([collectionId, assetId])
+  @@index([assetId])
+  @@map("collection_assets")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String // stored lowercase; uniqueness is per owner
+  createdAt DateTime @default(now())
+
+  assets AssetTag[]
+
+  @@unique([ownerId, name])
+  @@map("tags")
+}
+
+model AssetTag {
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tagId   String
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([assetId, tagId])
+  @@index([tagId])
+  @@map("asset_tags")
+}
+
+/// A public, unauthenticated link to either one asset or one collection
+/// (exactly one of assetId / collectionId is set - enforced in ShareService
+/// and by a CHECK constraint in the migration, since Prisma can't express it).
+model ShareLink {
+  id            String      @id @default(uuid())
+  token         String      @unique
+  ownerId       String
+  owner         User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  assetId       String?
+  asset         Asset?      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  collectionId  String?
+  collection    Collection? @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  passwordHash  String?
+  allowDownload Boolean     @default(true)
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  viewCount     Int         @default(0)
+  lastViewedAt  DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@index([assetId])
+  @@index([collectionId])
+  @@map("share_links")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String // e.g. "asset.uploaded", "share.created"
+  entityType String // "asset" | "collection" | "share"
+  entityId   String?
+  entityName String? // denormalised so the entry still reads correctly after the entity is deleted
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("activity_logs")
 }

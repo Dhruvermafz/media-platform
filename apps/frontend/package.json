@@ -1,14 +1,21 @@
 {
   "name": "@media-platform/frontend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "node dev/dev-mock.mjs",
+    "mock": "node dev/mock-server.mjs",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.1.0",
+    "@fontsource-variable/figtree": "^5.1.0",
+    "@tanstack/react-query": "^5.59.0",
+    "lucide-react": "^0.451.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.1"

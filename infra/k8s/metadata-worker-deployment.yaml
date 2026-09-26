@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-worker
+  namespace: media-platform
+  labels: { app: metadata-worker }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: metadata-worker }
+  template:
+    metadata:
+      labels: { app: metadata-worker }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      containers:
+        - name: metadata-worker
+          image: media-platform/metadata-worker:latest
+          ports:
+            - containerPort: 9100
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            # EXIF read + a container probe; video files are streamed to disk
+            # and only probed (no re-encode), so sized like image-worker.
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+      terminationGracePeriodSeconds: 30

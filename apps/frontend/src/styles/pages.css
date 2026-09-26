@@ -1,0 +1,44 @@
+/* ---------- auth ---------- */
+.auth { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+.auth-hero { display: flex; flex-direction: column; justify-content: space-between; padding: 2.5rem 3rem; background: var(--accent); color: var(--accent-ink); position: relative; overflow: hidden; }
+:root[data-theme='dark'] .auth-hero { background: #14315e; color: #e8f0ff; }
+.auth-hero .brand { color: inherit; } .auth-hero .brand-mark { background: rgb(255 255 255 / 0.18); color: inherit; }
+.auth-hero::before { content: ''; position: absolute; inset: -20% -10% auto auto; width: 70%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgb(255 255 255 / 0.16), transparent 68%); }
+.auth-copy { position: relative; max-width: 30rem; } .auth-copy h2 { font-size: clamp(1.9rem, 3.2vw, 2.8rem); line-height: 1.1; margin-bottom: 1rem; } .auth-copy p { opacity: 0.85; font-size: 1.05rem; }
+.auth-steps { display: grid; gap: 0.6rem; margin-top: 2rem; } .auth-steps li { display: flex; align-items: center; gap: 0.7rem; font-weight: 600; opacity: 0.35; animation: step 0.5s forwards; }
+.auth-steps li span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid currentColor; }
+@keyframes step { to { opacity: 1; } } .auth-steps li { animation-fill-mode: forwards; }
+.auth-panel { display: grid; place-items: center; padding: 2rem 1.25rem; }
+.auth-form { width: 100%; max-width: 380px; display: grid; gap: 1rem; } .auth-form h1 { font-size: 2rem; }
+.auth-alt { text-align: center; color: var(--ink-3); }
+@media (max-width: 899px) { .auth { grid-template-columns: 1fr; } .auth-hero { display: none; } }
+
+/* ---------- panels, stats, tables ---------- */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 1.25rem; margin-bottom: 1rem; } .panel > h2 { margin-bottom: 0.9rem; }
+.usage-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.6rem; }
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.1rem; }
+.stat { display: grid; gap: 0.1rem; padding: 0.9rem 1.1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); } .stat-n { font: 600 1.9rem var(--font-display); letter-spacing: -0.02em; } .stat-bad .stat-n { color: var(--bad); }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); }
+.panel .table-wrap { border: 0; } .table { width: 100%; border-collapse: collapse; } .table th { text-align: left; font-size: 0.78rem; color: var(--ink-3); font-weight: 600; padding: 0.7rem 1rem; border-bottom: 1px solid var(--line); } .table td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--line); } .table tr:last-child td { border: 0; }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; } .quota { width: 84px; text-align: right; }
+.statusbar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: var(--surface-2); gap: 2px; } .statusbar span { display: grid; place-items: center; font-size: 0.72rem; font-weight: 700; color: #fff; padding: 0 6px; white-space: nowrap; min-width: 4px; }
+.sb-ready, .sb-completed { background: var(--ok); } .sb-failed, .sb-dead_letter { background: var(--bad); } .sb-processing { background: var(--accent); } .sb-retry { background: var(--warn); } .sb-pending, .sb-uploaded, .sb-uploading { background: var(--ink-3); }
+.table-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); overflow: hidden; }
+.table-list > li { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 1rem; border-bottom: 1px solid var(--line); flex-wrap: wrap; } .table-list > li:last-child { border: 0; } .table-list > li.inactive { opacity: 0.55; }
+.tl-main { display: grid; flex: 1; min-width: 200px; } .tl-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--surface-2); color: var(--ink-3); } .tl-meta { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+/* ---------- collections ---------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1.1rem; } .card-skel { height: 250px; border-radius: var(--r-panel); }
+.card { display: grid; gap: 0.7rem; color: inherit; } .card:hover { text-decoration: none; } .card:hover .mosaic { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 4px var(--accent); }
+.card-body { display: grid; } .mosaic { display: grid; aspect-ratio: 4 / 3; gap: 3px; border-radius: var(--r-panel); overflow: hidden; background: var(--surface-2); transition: box-shadow 0.15s; }
+.mosaic span { overflow: hidden; background: var(--surface-3); } .mosaic img { width: 100%; height: 100%; object-fit: cover; }
+.mosaic.m1 { grid-template: 1fr / 1fr; } .mosaic.m2 { grid-template: 1fr / 1fr 1fr; } .mosaic.m3 { grid-template: 1fr 1fr / 2fr 1fr; } .mosaic.m3 span:first-child { grid-row: span 2; } .mosaic.m4 { grid-template: 1fr 1fr / 1fr 1fr; }
+.mosaic-empty { display: grid; place-items: center; color: var(--ink-3); grid-column: 1 / -1; }
+
+/* ---------- timeline ---------- */
+.timeline { display: grid; gap: 0.1rem; } .timeline li { display: flex; align-items: center; gap: 0.8rem; padding: 0.55rem 0.2rem; } .timeline li > div { flex: 1; }
+.tl-dot { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); color: var(--ink-2); flex: none; }
+
+/* ---------- public share ---------- */
+.public { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem 4rem; } .public-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.25rem; } .public-head h1 { font-size: 1.5rem; }
+.public-center { min-height: 70vh; display: grid; place-content: center; justify-items: center; text-align: center; gap: 0.8rem; padding: 2rem; color: var(--ink-2); } .public-center h1 { color: var(--ink); } .pw-form { width: min(100%, 320px); text-align: left; margin-top: 0.5rem; }

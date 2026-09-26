@@ -16,10 +16,22 @@ export interface AppConfig {
     secretAccessKey: string;
     bucket: string;
     forcePathStyle: boolean;
+    /** Endpoint *browsers* use for presigned URLs. In docker-compose the API
+     * reaches MinIO at http://minio:9000, a hostname only containers can
+     * resolve, so presigned URLs must be signed against a different,
+     * browser-reachable host. Defaults to `endpoint` (correct for real S3). */
+    publicEndpoint: string;
     publicBaseUrl?: string;
   };
   cache: {
     assetTtlSeconds: number;
+  };
+  /** Emails that are promoted to ADMIN on register/login. */
+  adminEmails: string[];
+  cleanup: {
+    enabled: boolean;
+    trashRetentionDays: number;
+    orphanUploadTtlHours: number;
   };
 }
 
@@ -41,9 +53,19 @@ export default (): AppConfig => ({
     secretAccessKey: process.env.S3_SECRET_KEY ?? '',
     bucket: process.env.S3_BUCKET ?? 'media-platform',
     forcePathStyle: (process.env.S3_FORCE_PATH_STYLE ?? 'true') === 'true',
+    publicEndpoint: process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || 'http://localhost:9000',
     publicBaseUrl: process.env.S3_PUBLIC_BASE_URL,
   },
   cache: {
     assetTtlSeconds: parseInt(process.env.ASSET_CACHE_TTL_SECONDS ?? '30', 10),
+  },
+  adminEmails: (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+  cleanup: {
+    enabled: (process.env.CLEANUP_ENABLED ?? 'true') === 'true',
+    trashRetentionDays: parseInt(process.env.TRASH_RETENTION_DAYS ?? '30', 10),
+    orphanUploadTtlHours: parseInt(process.env.ORPHAN_UPLOAD_TTL_HOURS ?? '24', 10),
   },
 });

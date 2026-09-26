@@ -9,6 +9,10 @@ export class MetricsInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest();
     const res = context.switchToHttp().getResponse();
+    // A Server-Sent Events stream emits one value per event; tap() would
+    // count every push as a separate request and record the stream's
+    // multi-hour lifetime as a latency sample.
+    if (req.path === '/events') return next.handle();
     const start = process.hrtime.bigint();
     // route.path (not req.url) keeps the label cardinality bounded —
     // /assets/:id instead of one label value per asset UUID ever requested.

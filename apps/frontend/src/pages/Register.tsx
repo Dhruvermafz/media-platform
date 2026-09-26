@@ -1,13 +1,13 @@
-import { FormEvent, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { ApiError } from '../api/client';
+import { FormEvent, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { ApiError } from "../api/client";
 
 export function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -17,9 +17,9 @@ export function RegisterPage() {
     setLoading(true);
     try {
       await register(email, password);
-      navigate('/assets');
+      navigate("/assets");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Registration failed');
+      setError(err instanceof ApiError ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -31,7 +31,13 @@ export function RegisterPage() {
         <h2>Create account</h2>
         {error && <div className="error-text">{error}</div>}
         <form onSubmit={onSubmit}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
           <input
             type="password"
             placeholder="Password (min 8 chars)"
@@ -40,7 +46,9 @@ export function RegisterPage() {
             minLength={8}
             required
           />
-          <button type="submit" disabled={loading}>{loading ? 'Creating…' : 'Create account'}</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Creating…" : "Create account"}
+          </button>
         </form>
         <p className="muted" style={{ marginTop: 12 }}>
           Already have an account? <Link to="/login">Sign in</Link>

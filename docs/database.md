@@ -14,6 +14,18 @@ User (1) ----< (many) Asset (1) ----< (many) ProcessingJob
 - A `User` owns many `Asset`s.
 - An `Asset` has many `ProcessingJob`s (one per transformation requested
   on upload) and many `AssetVariant`s (one per completed transformation).
+- Library tables (added in migration `20260919000000_library_platform`):
+  `Collection` ↔ `Asset` (many-to-many via `collection_assets`), `Tag` ↔ `Asset`
+  (via `asset_tags`, tags are per-user and unique by name), `ShareLink`
+  (targets exactly one asset **or** collection, enforced by a `CHECK`), and
+  `ActivityLog` (append-only audit trail with a denormalised `entityName`
+  so entries still read correctly after the entity is deleted).
+- `Asset` gained `title`, `description`, `isFavorite`, `deletedAt` (trash),
+  and metadata columns filled by the metadata-worker (`width`, `height`,
+  `durationMs`, `dominantColor`, `capturedAt`, `metadata` JSONB).
+  `User` gained `role`, `displayName`, `storageQuotaBytes`.
+- Indexes added for the library's hot paths: `(ownerId, deletedAt, createdAt DESC)`
+  (every library view) and `(ownerId, isFavorite)`.
 - A `ProcessingJob` produces at most one `AssetVariant` (the
   `AssetVariant.jobId` foreign key is unique) — a job either hasn't
   completed yet (no variant) or completed exactly once (one variant).
@@ -73,3 +85,20 @@ job row were ever deleted independently of its variant (not a flow this
 app currently exposes, but schema-safe regardless), the variant survives
 as an orphaned-but-intact record rather than being cascade-deleted for
 no reason.
+
+
+## Migrations
+
+`apps/api/prisma/migrations/` holds reviewed SQL:
+
+| Migration | Contents |
+|---|---|
+| `20260916000000_init` | The original four tables and enums |
+| `20260919000000_library_platform` | Everything above; purely additive (nullable columns / defaults) |
+
+`npm run db:check-drift --workspace apps/api` (needs `DATABASE_URL`) compares
+the live database with `schema.prisma` — tables, columns, types, nullability,
+unique constraints, foreign keys with their `ON DELETE` rule, and enum values.
+It matters here because the workers write to Postgres with hand-written SQL
+(`JobStore`), which Prisma cannot type-check. Run it in CI after
+`prisma migrate deploy`.
