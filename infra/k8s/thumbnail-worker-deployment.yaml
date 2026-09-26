@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thumbnail-worker
+  namespace: media-platform
+  labels: { app: thumbnail-worker }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: thumbnail-worker }
+  template:
+    metadata:
+      labels: { app: thumbnail-worker }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      containers:
+        - name: thumbnail-worker
+          image: media-platform/thumbnail-worker:latest
+          ports:
+            - containerPort: 9100
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            # Single-frame extraction is quick even though it shares
+            # FFmpeg with video-worker - sized like image-worker, not video-worker.
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+      terminationGracePeriodSeconds: 30

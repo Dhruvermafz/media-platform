@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: media-platform
+  labels: { app: api }
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } # never drop below full capacity during a rollout
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: api
+          image: media-platform/api:latest # replace with your registry/tag
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secrets }
+          # Migrations run as a separate Job (migration-job.yaml), NOT in
+          # this container's command - a bad migration must not be able
+          # to crash-loop every API replica on a rolling restart.
+          readinessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+      terminationGracePeriodSeconds: 30 # gives app.enableShutdownHooks() time to drain in-flight requests

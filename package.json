@@ -1,0 +1,11 @@
+{
+  "name": "media-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "docker compose -f infra/docker/docker-compose.yml up --build"
+  }
+}

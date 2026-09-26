@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-worker
+  namespace: media-platform
+  labels: { app: image-worker }
+spec:
+  replicas: 2 # independently tunable - see docs/scaling.md; KEDA can own this in prod
+  selector:
+    matchLabels: { app: image-worker }
+  template:
+    metadata:
+      labels: { app: image-worker }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      containers:
+        - name: image-worker
+          image: media-platform/image-worker:latest
+          ports:
+            - containerPort: 9100
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+      terminationGracePeriodSeconds: 60 # let an in-flight Sharp transform finish rather than being SIGKILLed

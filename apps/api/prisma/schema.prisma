@@ -1,0 +1,130 @@
+// See docs/database.md for indexing rationale and ERD walkthrough.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AssetStatus {
+  UPLOADING
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum AssetKind {
+  IMAGE
+  VIDEO
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRY
+  DEAD_LETTER
+}
+
+enum JobType {
+  IMAGE_THUMBNAIL
+  IMAGE_RESIZE
+  IMAGE_COMPRESS
+  IMAGE_FORMAT_CONVERT
+  VIDEO_TRANSCODE
+  VIDEO_THUMBNAIL
+  VIDEO_PREVIEW
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assets Asset[]
+
+  @@map("users")
+}
+
+model Asset {
+  id            String      @id @default(uuid())
+  ownerId       String
+  owner         User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  fileName      String
+  mimeType      String
+  kind          AssetKind
+  fileSize      BigInt
+  storageKey    String // object storage key for the original file
+  status        AssetStatus @default(UPLOADING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  processingJobs  ProcessingJob[]
+  variants        AssetVariant[]
+
+  // Hot path: "list my assets, newest first" and "list my assets by status"
+  // are the two queries the dashboard issues on every page load.
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@index([ownerId, status])
+  @@map("assets")
+}
+
+model ProcessingJob {
+  id              String    @id @default(uuid())
+  assetId         String
+  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  type            JobType
+  status          JobStatus @default(PENDING)
+  attempt         Int       @default(0)
+  maxAttempts     Int       @default(3)
+  params          Json      @default("{}")
+  idempotencyKey  String
+  failureReason   String?
+  streamMessageId String? // Redis Stream entry ID of the in-flight delivery, for XACK/XCLAIM bookkeeping
+  scheduledAt     DateTime  @default(now()) // when this attempt becomes eligible (used for backoff delay)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  variant AssetVariant?
+
+  // Idempotency guarantee lives here: same asset + same transformation
+  // (encoded in idempotencyKey) can only ever have one job row that's
+  // allowed to succeed. See packages/shared/src/idempotency.ts.
+  @@unique([assetId, idempotencyKey])
+  // Admin dashboard "queue depth" / "oldest pending job" queries, and
+  // the retry sweep that scans for RETRY rows whose scheduledAt has passed.
+  @@index([status, scheduledAt])
+  @@index([assetId])
+  @@map("processing_jobs")
+}
+
+model AssetVariant {
+  id          String        @id @default(uuid())
+  assetId     String
+  asset       Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  jobId       String?       @unique
+  job         ProcessingJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  type        JobType
+  storageKey  String
+  mimeType    String
+  fileSize    BigInt
+  width       Int?
+  height      Int?
+  durationMs  Int?
+  createdAt   DateTime      @default(now())
+
+  // A variant is uniquely identified by the transformation that produced
+  // it, mirroring the idempotency key on ProcessingJob — this is the
+  // constraint a duplicate-delivery insert collides against.
+  @@unique([assetId, type, storageKey])
+  @@index([assetId])
+  @@map("asset_variants")
+}

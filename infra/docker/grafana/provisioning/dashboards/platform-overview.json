@@ -1,0 +1,66 @@
+{
+  "title": "Media Platform Overview",
+  "uid": "media-platform-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Queue Depth by Worker",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{ "expr": "queue_depth", "legendFormat": "{{worker}}" }]
+    },
+    {
+      "id": 2,
+      "title": "Dead Letter Queue Depth",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{ "expr": "dead_letter_queue_depth", "legendFormat": "{{worker}}" }]
+    },
+    {
+      "id": 3,
+      "title": "Jobs by Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "jobs_by_status", "legendFormat": "{{status}}" }]
+    },
+    {
+      "id": 4,
+      "title": "API Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [{ "expr": "sum(rate(http_requests_total[1m])) by (route, status_code)", "legendFormat": "{{route}} {{status_code}}" }]
+    },
+    {
+      "id": 5,
+      "title": "API P95 Latency (s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))", "legendFormat": "{{route}}" }]
+    },
+    {
+      "id": 6,
+      "title": "Worker Job Throughput",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [{ "expr": "sum(rate(worker_jobs_completed_total[1m])) by (job_type)", "legendFormat": "{{job_type}} completed/s" }]
+    },
+    {
+      "id": 7,
+      "title": "Worker Processing Duration P95 (s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(worker_job_processing_duration_seconds_bucket[5m])) by (le, job_type))", "legendFormat": "{{job_type}}" }]
+    },
+    {
+      "id": 8,
+      "title": "Active Jobs per Worker",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [{ "expr": "worker_active_jobs", "legendFormat": "{{instance}}" }]
+    }
+  ]
+}

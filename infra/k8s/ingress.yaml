@@ -1,0 +1,32 @@
+# Requires an ingress controller (e.g. ingress-nginx) installed on the
+# cluster - see migration.md §11 prerequisites. TLS is intentionally not
+# hard-coded here: attach a cert-manager Certificate/ClusterIssuer per
+# your own domain and certificate authority, then add a `tls:` block.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: media-platform
+  namespace: media-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0" # uploads go direct to object storage, never through this ingress
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: media-platform.example.com # replace with your domain
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

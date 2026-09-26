@@ -1,0 +1,23 @@
+# Run once per deploy, before api-deployment.yaml rolls out new pods:
+#   kubectl apply -f infra/k8s/migration-job.yaml
+#   kubectl -n media-platform wait --for=condition=complete job/db-migrate --timeout=120s
+#   kubectl -n media-platform delete job/db-migrate   # Jobs don't auto-cleanup; re-apply will fail on a name collision otherwise
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: media-platform
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: media-platform/api:latest # replace with your registry/tag
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video-worker
+  namespace: media-platform
+  labels: { app: video-worker }
+spec:
+  replicas: 4 # video transcoding is the most CPU/time-expensive job type - see docs/scaling.md
+  selector:
+    matchLabels: { app: video-worker }
+  template:
+    metadata:
+      labels: { app: video-worker }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      containers:
+        - name: video-worker
+          image: media-platform/video-worker:latest
+          ports:
+            - containerPort: 9100
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 9100 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            # FFmpeg transcoding is CPU-bound and benefits from more
+            # headroom than the other two worker kinds - sized ~4x image-worker.
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits: { cpu: "2000m", memory: "2Gi" }
+      terminationGracePeriodSeconds: 120 # a transcode in progress can take a while to reach a safe stopping point

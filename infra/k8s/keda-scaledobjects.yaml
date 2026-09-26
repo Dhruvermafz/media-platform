@@ -1,0 +1,65 @@
+# Requires KEDA installed (see migration.md §11) and a reachable Redis
+# host/port substituted below. Thresholds here are starting points, not
+# tuned production values - the brief is explicit that autoscaling
+# metrics must not be faked, so these are meant to be adjusted against
+# real docs/load-testing.md results on your own infrastructure before
+# relying on them.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: image-worker-scaler
+  namespace: media-platform
+spec:
+  scaleTargetRef:
+    name: image-worker
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  cooldownPeriod: 60
+  triggers:
+    - type: redis-streams
+      metadata:
+        address: REPLACE_ME_REDIS_HOST:6379
+        stream: stream:jobs:image-worker
+        consumerGroup: cg:image-worker
+        pendingEntriesCount: "20"
+        activationLagCount: "1"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: video-worker-scaler
+  namespace: media-platform
+spec:
+  scaleTargetRef:
+    name: video-worker
+  minReplicaCount: 2
+  maxReplicaCount: 20
+  cooldownPeriod: 120 # transcodes run long - avoid scaling down while jobs are still likely mid-flight
+  triggers:
+    - type: redis-streams
+      metadata:
+        address: REPLACE_ME_REDIS_HOST:6379
+        stream: stream:jobs:video-worker
+        consumerGroup: cg:video-worker
+        pendingEntriesCount: "10" # lower threshold than image-worker - each pending job is far more expensive
+        activationLagCount: "1"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: thumbnail-worker-scaler
+  namespace: media-platform
+spec:
+  scaleTargetRef:
+    name: thumbnail-worker
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  cooldownPeriod: 60
+  triggers:
+    - type: redis-streams
+      metadata:
+        address: REPLACE_ME_REDIS_HOST:6379
+        stream: stream:jobs:thumbnail-worker
+        consumerGroup: cg:thumbnail-worker
+        pendingEntriesCount: "20"
+        activationLagCount: "1"
